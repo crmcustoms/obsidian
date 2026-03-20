@@ -194,11 +194,55 @@ pf_file_id = r.json()['id']
 
 ---
 
+## Антидублювання — SQLite DB
+
+Файл `migrate_files.db` на сервері — два рядки:
+
+```sql
+-- Кеш файлів: mp_file_id → pf_file_id (не завантажуємо двічі)
+uploaded_files (mp_file_id PK, pf_file_id, filename, uploaded_at)
+
+-- Статус по кожному source (не обробляємо двічі)
+processed_sources (mp_deal_id, source, pf_task_id, status, files_count)
+-- source: 'field:120571', 'comment:310089', 'attaches'
+```
+
+Можна безпечно перезапускати скрипт — вже оброблені sources пропускаються (`status='done'`).
+Вже завантажені файли повертаються з кешу (по `mp_file_id`).
+
+## Правило розміщення файлів
+
+| Звідки в Мегаплані | Куди в Планфікс |
+|---|---|
+| Поле угоди (напр. SkanDogovora) | Відповідне поле задачі (120579) |
+| Коментар угоди | Новий коментар в задачі з файлами |
+| Прямі attaches угоди | Файли в описі задачі |
+
+## Команди запуску
+
+```bash
+# Dry-run (перевірка без запису)
+docker exec itcomms-scripts python migrate_files.py
+
+# Тест на одній сделці
+docker exec itcomms-scripts python migrate_files.py --live --deal 29008
+
+# Тест — 10 задач шаблону 15
+docker exec itcomms-scripts python migrate_files.py --live --template 15 --limit 10
+
+# Повний запуск шаблону 15
+docker exec itcomms-scripts python migrate_files.py --live --template 15
+
+# Всі шаблони
+docker exec itcomms-scripts python migrate_files.py --live
+```
+
 ## Чеклист запуску
 
-- [ ] Написати `migrate_files.py`
-- [ ] Запустити dry_run на 10 задачах шаблону 15
-- [ ] Перевірити що файли з'явились у правильних полях Планфікс
-- [ ] Запустити dry_run на всіх шаблонах (лог кількості файлів)
-- [ ] Запустити live на шаблоні 15
-- [ ] Запустити live на шаблонах 7691 і 11
+- [x] Написати `migrate_files.py`
+- [ ] Задеплоїти на сервер (`git push` + `git pull` + `docker restart`)
+- [ ] Dry-run: `python migrate_files.py` — перевірити лог
+- [ ] Тест: `--live --deal 29008` — 1 сделка, перевірити в Планфікс
+- [ ] Тест: `--live --template 15 --limit 10`
+- [ ] Перевірити що файли в правильних полях, коментарі збереглись
+- [ ] Повний live шаблон 15 → потім 7691 → потім 11
