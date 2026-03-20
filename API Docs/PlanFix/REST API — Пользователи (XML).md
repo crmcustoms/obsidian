@@ -960,8 +960,6 @@ Auth: см. [[REST API — Авторизация]]
 | 9124 | Язык интерфейса сотрудника | - equal<br>- notequal | string — код языка, например: "En" |
 | 9126 | Идентификатор Telegram | - equal<br>- notequal | int - идентификатор в Telegram |
 
-- REST API
-
 ---
 
 ## Связанные темы

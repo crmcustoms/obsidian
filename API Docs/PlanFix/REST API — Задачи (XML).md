@@ -1643,8 +1643,6 @@ AFTER\_COMPLETE - ежемесячно ставить новую задачу ч
 | 9 | Срочность | - equal<br>- notequal | string - Urgent или NotUrgent |
 | 93 | Значение поля записи аналитики | (в зависимости от типа поля)<br>- equal<br>- notequal<br>- gt<br>- lt<br>- have<br>- nothave | Значение поля аналитики по которому выполняется фильтрация, дополнительно в структуре фильтра надо передать поле subfilter, пример для фильтра поля аналитики типа Строка:<br>```<br>{<br>  "offset": 0,<br>  "pageSize": 100,<br>  "filters": [<br>    {<br>      "type": 93,<br>      "operator": "equal",<br>      "value": "Test value",<br>      "subfilter": {<br>        "dataTagId": 6,<br>        "filter": {<br>          "type": 3108,<br>          "field": 20<br>        }<br>      }<br>    }<br>  ],<br>  "fields": "id,name,dataTags"<br>}<br>```<br>где:<br>- dataTagId — идентификатор аналитики.<br>- filter — объект фильтра по этой аналитике.<br>- type — тип фильтра, в данном случае сложный фильтр аналитики по полю типа Строка.<br>- field — идентификатор поля аналитики, по которому выполняется фильтр. |
 
-- REST API
-
 ---
 
 ## Связанные темы

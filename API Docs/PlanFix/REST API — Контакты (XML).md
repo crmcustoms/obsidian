@@ -1333,8 +1333,6 @@ Auth: см. [[REST API — Авторизация]]
 | 4227 | Имя пользователя Instagram | - have<br>- nothave | string - имя пользователя (username, @username, https://www.instagram.com/username) |
 | 4229 | Имя пользователя Facebook | - have<br>- nothave | string - имя пользователя (username, https://www.facebook.com/username) |
 
-- REST API
-
 ---
 
 ## Типы клиентов

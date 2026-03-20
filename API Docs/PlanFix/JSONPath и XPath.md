@@ -250,8 +250,6 @@ Here's the breakdown of this XPath expression:
 You can use this XPath expression in any XPath-compatible XML parser to retrieve the value you're looking for.
 ```
 
-- XPath
-
 ---
 
 ## Связанные темы

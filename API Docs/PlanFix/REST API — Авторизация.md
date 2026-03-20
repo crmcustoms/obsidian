@@ -18,8 +18,6 @@ Authorization : Bearer 5d80e21cb3e12345678bdd568a2226d5
 
 Для GET запросов токен авторизации передается параметром: **access\_token**.
 
-- REST API
-
 ---
 
 ## Уровни доступа (scope)
@@ -58,8 +56,6 @@ Authorization : Bearer 5d80e21cb3e12345678bdd568a2226d5
   - file\_add — доступна только загрузка новых файлов.
   - file\_delete— доступно только удаление файлов.
 
-- REST API
-
 ---
 
 ## Тестирование в Postman
@@ -93,8 +89,6 @@ https://домен_аккаунта/rest
 ## Дополнительная информация
 
 - [Документация Postman](https://learning.postman.com/docs/getting-started/introduction/)
-
-- REST API
 
 ---
 
@@ -163,8 +157,6 @@ Authorization : Basic NGRiMDlkZjVhNjJhOGEzMmE5NTIyZmNhYzAyZDNjNmY6WA==
 
 где слово после Basic - base64('ApiKey:Token');
 
-- XML API v1
-
 ---
 
 ## XML API: Авторизация по логину и паролю
@@ -192,8 +184,6 @@ Authorization : Basic NGRiMDlkZjVhNjJhOGEzMmE5NTIyZmNhYzAyZDNjNmY6WA==
 ```
 
 где слово после Basic - base64('ApiKey:');
-
-- XML API v1
 
 ---
 
