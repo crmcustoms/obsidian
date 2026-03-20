@@ -1,163 +1,204 @@
 # ITCOMMS — План міграції файлів
 
 ## Задача
-Перенести всі файли з угод Мегаплану в задачі Планфікс.
+Перенести всі файли з угод Мегаплану в задачі Планфікс у відповідні поля.
 
 **Шаблони:** 11 (Текущие клиенти), 15 (Конфеты нал), 7691 (Безнал)
 **Зв'язок:** поле `132121` (ID сделки) в Планфікс → `deal.id` в Мегаплані
-**Файли:** з полів угоди + з коментарів угоди
 
 ---
 
-## Алгоритм
+## Ключові факти
+
+1. **Один Program 35 → два шаблони Планфікс** (15 і 7691), розділяємо по `TipPlatezha == "Конфеты"`
+2. **Файли йдуть у конкретні поля** (type 21), а не просто в опис задачі
+3. **Файли ЗАМІНЮЮТЬ** існуючі при оновленні поля — треба спочатку GET
+4. Файли є і в полях угоди, і в коментарях (перевіряємо `attachesCountInComments > 0`)
+5. URL Мегаплану потребує Bearer — скачуємо через сервер і завантажуємо мультипартом
+
+---
+
+## Маппінг файлових полів
+
+```python
+FILE_FIELD_MAP = {
+    # Program 14 → шаблон 11
+    14: {
+        'Category1000061CustomFieldBrif':                  120571,  # Бриф
+        'Category1000061CustomFieldSkanDogovora':          120579,  # Скан договора
+        'Category1000061CustomFieldSkanPrilozheniyaIliDs': 120581,  # Скан Приложения (или ДС)
+        'Category1000061CustomFieldAktVipolnennihRabot':   120585,  # Акт выполненных работ
+    },
+    # Program 35 → шаблони 15 і 7691
+    35: {
+        'Category1000083CustomFieldSkanOriginalaDogovora': 121019,  # Скан оригинала договора
+        'Category1000083CustomFieldSkanDogovora':          120579,  # Скан договора
+        'Category1000083CustomFieldAktSkan':               121023,  # Акт (скан)
+    }
+}
+# Файли з коментарів → до опису задачі (task description files)
+# Прямі attaches угоди → теж до опису задачі
+```
+
+---
+
+## Алгоритм (псевдокод)
 
 ```
 для кожного шаблону (11, 15, 7691):
   для кожної задачі Планфікс:
     1. читаємо поле 132121 → megaplan_deal_id
-    2. якщо megaplan_deal_id порожній → пропуск
-    3. GET /api/v3/deal/{deal_id}/attaches → файли з полів
-    4. GET /api/v3/deal/{deal_id}/comments → список коментарів
-       для кожного коментаря:
-         GET /api/v3/comment/{comment_id}/attaches → файли
-    5. об'єднуємо всі файли (унікальні по id)
-    6. якщо файлів немає → пропуск
-    7. GET /task/{pf_task_id}/files → існуючі файли задачі
-    8. для кожного файлу Мегаплану:
-       a. POST /file/from-url/ {"url": megaplan_file_url, "name": file.name}
-          → pf_file_id
-    9. POST /task/{pf_task_id}?silent=true
-       {"files": [*existing_pf_file_ids, *new_pf_file_ids]}
+       якщо порожнє → skip
+
+    2. GET /api/v3/deal/{deal_id} → вся угода
+       program_id = int(deal['program']['id'])  # 14 або 35
+       field_map = FILE_FIELD_MAP[program_id]
+
+    3. Для кожного файлового поля:
+       for mp_field, pf_field_id in field_map.items():
+           mp_files = deal.get(mp_field, [])
+           якщо mp_files порожнє → skip
+
+           # Отримати існуючі файли в PF полі
+           existing = get_task_field_files(pf_task_id, pf_field_id)
+
+           # Завантажити нові файли
+           new_file_ids = []
+           for file in mp_files:
+               pf_id = upload_from_megaplan(file)
+               new_file_ids.append(pf_id)
+
+           # Оновити поле (merge!)
+           all_ids = existing + new_file_ids
+           update_task_field_files(pf_task_id, pf_field_id, all_ids)
+
+    4. Якщо deal['attachesCountInComments'] > 0:
+       коментарі = GET /api/v3/deal/{deal_id}/comments
+       comment_files = []
+       for comment in коментарі:
+           if comment.get('attaches'):
+               comment_files += comment['attaches']
+           # або GET /api/v3/comment/{id}/attaches
+
+       # Файли з коментарів → в опис задачі
+       existing_desc = GET /rest/task/{pf_task_id}/files
+       new_ids = [upload_from_megaplan(f) for f in comment_files]
+       POST /rest/task/{pf_task_id} {"files": existing_desc + new_ids}
+
+    5. Якщо deal['attaches']:
+       # Прямі вкладення угоди → також в опис задачі
+       (аналогічно п.4)
+
+    6. Лог: task_id, deal_id, program_id, файли по полях, файли з коментарів
 ```
 
 ---
 
-## Мегаплан — отримати файли
+## Код скрипту (основа)
 
 ```python
-import requests
+import requests, logging, time, os, tempfile
 
+PLANFIX_HOST  = "https://itcomms.planfix.com"
+PLANFIX_TOKEN = "6ca06006655c6e695c495a4705609c85"
 MEGAPLAN_HOST = "https://likhtman.megaplan.ru"
 MEGAPLAN_TOKEN = "NzZkODN..."
+
+pf_headers = {"Authorization": f"Bearer {PLANFIX_TOKEN}", "Content-Type": "application/json"}
 mp_headers = {"Authorization": f"Bearer {MEGAPLAN_TOKEN}"}
 
-# Файли з полів угоди
-def get_deal_attaches(deal_id):
-    r = requests.get(f"{MEGAPLAN_HOST}/api/v3/deal/{deal_id}/attaches", headers=mp_headers)
-    return r.json().get('data', {}).get('attaches', [])
+DRY_RUN = True  # False для live
 
-# Файли з коментарів
-def get_deal_comment_files(deal_id):
-    files = []
-    # Отримати всі коментарі
-    r = requests.get(f"{MEGAPLAN_HOST}/api/v3/deal/{deal_id}/comments", headers=mp_headers)
-    comments = r.json().get('data', {}).get('comments', [])
-    for comment in comments:
-        cid = comment['id']
-        r2 = requests.get(f"{MEGAPLAN_HOST}/api/v3/comment/{cid}/attaches", headers=mp_headers)
-        attaches = r2.json().get('data', {}).get('attaches', [])
-        files.extend(attaches)
-    return files
+FILE_FIELD_MAP = {
+    14: {
+        'Category1000061CustomFieldBrif':                  120571,
+        'Category1000061CustomFieldSkanDogovora':          120579,
+        'Category1000061CustomFieldSkanPrilozheniyaIliDs': 120581,
+        'Category1000061CustomFieldAktVipolnennihRabot':   120585,
+    },
+    35: {
+        'Category1000083CustomFieldSkanOriginalaDogovora': 121019,
+        'Category1000083CustomFieldSkanDogovora':          120579,
+        'Category1000083CustomFieldAktSkan':               121023,
+    }
+}
 
-# Всі файли угоди (альтернативно - один endpoint)
-def get_all_deal_files(deal_id):
-    r = requests.get(
-        f"{MEGAPLAN_HOST}/api/v3/deal/{deal_id}/allFiles",
-        params={"modelId": deal_id, "limit": 100},
-        headers=mp_headers
-    )
-    return r.json().get('data', {}).get('files', [])
-```
+# Завантажити файл з Мегаплану → Планфікс
+def upload_from_megaplan(mp_file):
+    url = f"{MEGAPLAN_HOST}{mp_file['path']}"
+    # Скачуємо з Мегаплану (потребує авторизації)
+    r = requests.get(url, headers=mp_headers, timeout=60)
+    r.raise_for_status()
+    # Завантажуємо в Планфікс
+    files = {'file': (mp_file['name'], r.content, mp_file.get('mimeType', 'application/octet-stream'))}
+    pf_headers_upload = {"Authorization": f"Bearer {PLANFIX_TOKEN}"}
+    r2 = requests.post(f"{PLANFIX_HOST}/rest/file/", headers=pf_headers_upload, files=files)
+    return r2.json()['id']
 
----
-
-## Планфікс — завантажити та прикріпити
-
-```python
-PLANFIX_HOST = "https://itcomms.planfix.com"
-PLANFIX_TOKEN = "6ca06006655c6e695c495a4705609c85"
-pf_headers = {"Authorization": f"Bearer {PLANFIX_TOKEN}", "Content-Type": "application/json"}
-
-# Отримати поточні файли задачі
-def get_task_files(task_id):
-    r = requests.get(f"{PLANFIX_HOST}/rest/task/{task_id}/files", headers=pf_headers)
-    return r.json().get('files', [])
-
-# Завантажити файл з Мегаплану в Планфікс
-def upload_file_from_megaplan(mp_file):
-    file_url = f"{MEGAPLAN_HOST}{mp_file['path']}"
-    # Планфікс завантажить файл сам по URL
-    r = requests.post(
-        f"{PLANFIX_HOST}/rest/file/from-url/",
-        headers=pf_headers,
-        json={"url": file_url, "name": mp_file['name']}
-    )
-    # ⚠️ Але URL Мегаплану потребує авторизації — можливо треба спочатку скачати локально
-    return r.json().get('id')
-
-# Оновити файли задачі (merge з існуючими!)
-def attach_files_to_task(task_id, new_file_ids, dry_run=True):
-    existing = get_task_files(task_id)
-    existing_ids = [{"id": f["id"]} for f in existing]
-    new_ids = [{"id": fid} for fid in new_file_ids]
-    all_files = existing_ids + new_ids
-
-    if dry_run:
-        print(f"DRY: task {task_id}: додати {len(new_file_ids)} файлів (є {len(existing_ids)})")
+# Оновити файлове поле задачі
+def update_task_field_files(task_id, pf_field_id, file_ids):
+    if DRY_RUN:
+        logging.info(f"DRY: task {task_id} field {pf_field_id} ← {file_ids}")
         return
-
     r = requests.post(
         f"{PLANFIX_HOST}/rest/task/{task_id}?silent=true",
         headers=pf_headers,
-        json={"files": all_files}
+        json={"customFields": [{"field": {"id": pf_field_id}, "value": [{"id": fid} for fid in file_ids]}]}
     )
     return r.json()
+
+# Отримати існуючі файли в полі задачі
+def get_task_field_files(task_id, pf_field_id):
+    # GET /rest/task/{id} з конкретним полем
+    r = requests.get(
+        f"{PLANFIX_HOST}/rest/task/{task_id}",
+        headers=pf_headers,
+        params={"fields": f"customField{pf_field_id}"}
+    )
+    data = r.json()
+    fields = data.get('customFieldData', [])
+    for f in fields:
+        if f.get('field', {}).get('id') == pf_field_id:
+            return [v['id'] for v in f.get('value', [])]
+    return []
 ```
 
 ---
 
-## Нюанс: авторизований URL Мегаплану
+## Нюанс: завантаження файлу
 
-Планфікс при `POST /file/from-url/` завантажує файл сам по URL. Але URL Мегаплану
-(`https://likhtman.megaplan.ru/file/download/...`) потребує Bearer token.
+**Мегаплан URL потребує авторизації** — Планфікс не може сам завантажити по URL.
+Варіант: скачати на сервер → завантажити мультипартом.
 
-**Варіант А:** Спочатку скачати файл на сервер → завантажити в Планфікс через `POST /file/`
 ```python
-# Скачати з Мегаплану
-mp_response = requests.get(f"{MEGAPLAN_HOST}{file['path']}", headers=mp_headers)
-# Завантажити в Планфікс
-pf_response = requests.post(
-    f"{PLANFIX_HOST}/rest/file/",
-    headers={"Authorization": f"Bearer {PLANFIX_TOKEN}"},
-    files={"file": (file['name'], mp_response.content, file['mimeType'])}
-)
+# POST /rest/file/ (multipart)
+files_payload = {'file': (filename, content_bytes, mime_type)}
+headers_upload = {"Authorization": f"Bearer {PLANFIX_TOKEN}"}  # без Content-Type!
+r = requests.post(f"{PLANFIX_HOST}/rest/file/", headers=headers_upload, files=files_payload)
+pf_file_id = r.json()['id']
 ```
 
-**Варіант Б:** Отримати публічний URL через Мегаплан shareUrl → передати в Планфікс
-```python
-r = requests.get(f"{MEGAPLAN_HOST}/api/v3/attache/shareUrl/{file['id']}", headers=mp_headers)
-public_url = r.json().get('data', {}).get('url')
-# Потім POST /file/from-url/ з public_url
-```
-
-**Рекомендація:** Варіант А (надійніший). Файли проходять через сервер.
+Альтернатива: `GET /api/v3/attache/shareUrl/{id}` → публічний URL → `POST /file/from-url/`
 
 ---
 
-## Потенційні проблеми
+## Очікувана статистика
 
-1. **Розмір файлів** — великі файли можуть уповільнити міграцію. Додати timeout.
-2. **Дублікати** — перевіряти чи файл вже є (по імені) перед завантаженням.
-3. **Rate limiting** — додати `time.sleep(0.2)` між запитами.
-4. **Угоди без файлів** — пропускати (not_found логувати окремо).
-5. **Планфікс "files replace"** — обов'язково робити GET існуючих файлів перед update!
+| Шаблон | Задач | Avg файлів | Час (~0.5s/файл) |
+|--------|-------|-----------|------------------|
+| 11 | ~500 | 2-4 | ~30 хв |
+| 15 | ~1500 | 1-3 | ~60 хв |
+| 7691 | ~800 | 1-3 | ~40 хв |
+
+Всього: ~2-3 години з rate limiting (`time.sleep(0.3)` між запитами).
 
 ---
 
-## Статистика (очікувана)
+## Чеклист запуску
 
-- Шаблон 11: ~500+ задач
-- Шаблон 15: ~1500+ задач
-- Шаблон 7691: ~800+ задач
-- Середнє файлів на угоду: ~2-5
-- Очікуваний час: 2-4 год (з rate limiting)
+- [ ] Написати `migrate_files.py`
+- [ ] Запустити dry_run на 10 задачах шаблону 15
+- [ ] Перевірити що файли з'явились у правильних полях Планфікс
+- [ ] Запустити dry_run на всіх шаблонах (лог кількості файлів)
+- [ ] Запустити live на шаблоні 15
+- [ ] Запустити live на шаблонах 7691 і 11

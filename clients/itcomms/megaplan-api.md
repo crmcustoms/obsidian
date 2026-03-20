@@ -104,6 +104,78 @@ GET /api/v3/contractor/{id}
 
 ---
 
+## Структура угоди Deal (реальний приклад — Program 14 "Текущие клиенты")
+
+```json
+{
+  "data": {
+    "contentType": "Deal",
+    "id": "28324",
+    "number": "ТК-28324-01082025",
+    "name": "Маркетинг ITCOMMS - Q3 2025",
+    "contractor": {"contentType": "ContractorCompany", "id": "1039805", "name": "ITCOMMS KZ"},
+    "payer": {"contentType": "Payer", "id": "1010702", "name": "ITCOMMS LLC"},
+    "manager": {"contentType": "Employee", "id": "1000215"},
+    "state": {"id": "127", "name": "в работе", "type": "active"},
+    "program": {"contentType": "Program", "id": "14", "name": "Текущие клиенты"},
+    "timeCreated": {"contentType": "DateTime", "value": "2025-08-01T12:01:55+00:00"},
+    "attaches": [],
+    "attachesCount": 0,
+    "allFilesCount": 0,
+    "commentsCount": 0,
+    "attachesCountInComments": 0,
+
+    "Category1000061CustomFieldBrif": [],
+    "Category1000061CustomFieldSkanDogovora": [],
+    "Category1000061CustomFieldSkanPrilozheniyaIliDs": [],
+    "Category1000061CustomFieldAktVipolnennihRabot": [],
+
+    "Category1000061CustomFieldSsilkaNaDisk": "https://drive.google.com/...",
+    "Category1000061CustomFieldNachaloRabot": {"contentType": "DateOnly", "year": 2025, "month": 6, "day": 1},
+    "Category1000061CustomFieldOzhidaemiyKonetsProekta": {"contentType": "DateOnly", "year": 2025, "month": 8, "day": 30},
+    "Category1000061CustomFieldRashodiSummaItogo": {"contentType": "Money", "currency": "RUB", "value": 109096.14},
+    "Category1000061CustomFieldRashodiPoProektu": "https://directus.2l-pr.com/?dealId=28324"
+  }
+}
+```
+
+### Маппінг Program → Planfix шаблон
+
+| Megaplan program.id | program.name | Planfix шаблон ID | Назва | Умова |
+|---|---|---|---|---|
+| 14 | Текущие клиенты | 11 | Текущие клиенти | — |
+| 35 | Прочие поставщики | 15 | Прочие поставщики Конфеты | `TipPlatezha == "Конфеты"` |
+| 35 | Прочие поставщики | 7691 | Прочие поставщики безнал | `TipPlatezha != "Конфеты"` |
+
+> ⚠️ Program 35 — ОДНА програма в Мегаплані → ДВА шаблони в Планфікс. Розділяємо по `Category1000083CustomFieldTipPlatezha`.
+
+### Файлові поля угоди (Program 14 → шаблон 11)
+```python
+FILE_FIELDS_PROGRAM14 = [
+    'Category1000061CustomFieldBrif',                   # Бриф
+    'Category1000061CustomFieldSkanDogovora',            # Скан договора
+    'Category1000061CustomFieldSkanPrilozheniyaIliDs',  # Скан приложения/ДС
+    'Category1000061CustomFieldAktVipolnennihRabot',    # Акт выполненных работ
+]
+```
+
+### Файлові поля угоди (Program 35 → шаблони 15 і 7691)
+```python
+FILE_FIELDS_PROGRAM35 = [
+    'Category1000083CustomFieldSkanOriginalaDogovora',  # Скан оригинала договора
+    'Category1000083CustomFieldSkanDogovora',           # Скан договора
+    'Category1000083CustomFieldAktSkan',                # Акт (скан)
+]
+```
+
+### Загальне (обидва)
+```python
+# + deal['attaches']  (прямі вкладення угоди)
+# + файли в коментарях (якщо attachesCountInComments > 0):
+#   GET /api/v3/deal/{id}/comments → для кожного comment:
+#   GET /api/v3/comment/{id}/attaches
+```
+
 ## Структура рахунку (приклад відповіді)
 
 ```json
