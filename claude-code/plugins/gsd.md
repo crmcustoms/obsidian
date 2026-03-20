@@ -40,6 +40,20 @@ claude --dangerously-skip-permissions
 
 Иначе Claude будет спрашивать разрешение на каждую мелочь.
 
+## Хуки (устанавливаются автоматически)
+
+| Хук | Описание |
+|-----|----------|
+| `SessionStart` | Проверка обновлений GSD |
+| `PostToolUse` | Мониторинг контекстного окна |
+| `StatusLine` | Статус в строке интерфейса |
+
+## Статус
+
+- **Версия:** 1.26.0
+- **Scope:** global
+- **Install path:** `~/.claude/`
+
 ## Ссылки
 
 - [GitHub](https://github.com/gsd-build/get-shit-done)
