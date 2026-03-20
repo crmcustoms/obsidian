@@ -22,6 +22,8 @@
 | [[claude-code/plugins/frontend-design\|Frontend Design]] | Skill | ✅ Active | UI/UX генерация |
 | [[claude-code/plugins/megaplan\|Megaplan]] | Skill | ✅ Active | Интеграция с Megaplan |
 | [[claude-code/plugins/mytets\|Mytets]] | Skill | ✅ Active | Театральный режим |
+| [[claude-code/plugins/excalidraw\|Excalidraw]] | Skill | ✅ Active | Диаграммы по текстовому описанию |
+| [[claude-code/plugins/claudian\|Claudian]] | Obsidian Plugin | ✅ Active | Claude Code прямо в Obsidian |
 
 ---
 

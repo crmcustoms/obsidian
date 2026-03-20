@@ -45,6 +45,32 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 npx get-shit-done-cc --claude --global
 ```
 
+### Excalidraw Skill
+
+```bash
+git clone https://github.com/coleam00/excalidraw-diagram-skill.git
+cp -r excalidraw-diagram-skill ~/.claude/skills/excalidraw-diagram
+
+# Установить uv (Windows)
+powershell -Command "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Настроить рендерер
+cd ~/.claude/skills/excalidraw-diagram/references
+uv sync
+uv run playwright install chromium
+```
+
+### Claudian (Obsidian Plugin)
+
+```bash
+mkdir -p /path/to/vault/.obsidian/plugins/claudian
+curl -L https://github.com/YishenTu/claudian/releases/latest/download/main.js -o .obsidian/plugins/claudian/main.js
+curl -L https://github.com/YishenTu/claudian/releases/latest/download/manifest.json -o .obsidian/plugins/claudian/manifest.json
+curl -L https://github.com/YishenTu/claudian/releases/latest/download/styles.css -o .obsidian/plugins/claudian/styles.css
+```
+
+Затем: **Settings → Community plugins → Enable "Claudian"**
+
 ### Локальные плагины (megaplan, mytets)
 
 Скопировать папки из бэкапа в:
@@ -103,3 +129,5 @@ echo "TELEGRAM_BOT_TOKEN=<токен>" > ~/.claude/channels/telegram/.env
 - [[claude-code/plugins/frontend-design]]
 - [[claude-code/plugins/megaplan]]
 - [[claude-code/plugins/mytets]]
+- [[claude-code/plugins/excalidraw]]
+- [[claude-code/plugins/claudian]]
