@@ -10,12 +10,6 @@
 
 Онлайн-тестирование: https://jsonpath.com/
 
-## Содержание
-
-## Перейти
-
-# JSONPath
-
 Для отладки и устранения ошибок парсинга используйте специальный онлайн сервис: [JSONPath Online Evaluator](https://jsonpath.com/)
 
 Приходящие в ПланФикс письма по E-mail или вебхуки можно разбирать, используя **JSON**. JavaScript Object Notation — это формат для хранения и обмена информацией, доступной для чтения человеком. Есть два основных элемента объекта JSON: ключи и значения.
@@ -181,17 +175,11 @@
 
 - В итоге в задаче видим оповещение и аналитику:
 
-## Перейти
-
 ---
 
 ## XPath
 
 Онлайн-тестирование: http://xpather.com/
-
-## Перейти
-
-# XPath
 
 Для отладки и устранения ошибок парсинга используйте специальный онлайн сервис: [XPath Online tester](http://xpather.com/)
 
@@ -211,17 +199,9 @@
 
 Аналогично можно разобрать любые XML-данные, отправленные в ПланФикс.
 
-## Перейти
-
 ---
 
 ## XPath с ChatGPT
-
-## Перейти
-
-- XPath
-
-# XPath в ChatGPT
 
 Используйте ChatGPT, чтобы составить XPath-запрос для парсинга нужных данных. Для примера рассмотрим вариант получения запроса для парсинга данных из поля ID 123.
 
@@ -269,8 +249,6 @@ Here's the breakdown of this XPath expression:
 /value/text(): Fetches the text value of the value child element of the filtered customValue element.
 You can use this XPath expression in any XPath-compatible XML parser to retrieve the value you're looking for.
 ```
-
-## Перейти
 
 - XPath
 
